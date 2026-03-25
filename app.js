@@ -399,15 +399,9 @@ function buildCertHTML(w) {
     <!-- TOP HEADER -->
     <div class="cert-header-top">
       <div class="cert-logo-area">
-        <svg class="cert-logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="24" r="21" stroke="#E8201A" stroke-width="3"/>
-          <path d="M15 24 L24 13 L33 24 L24 35 Z" fill="#E8201A"/>
-          <circle cx="24" cy="24" r="5" fill="white"/>
-        </svg>
-        <div class="cert-brand-block">
-          <div class="cert-brand-name">Guild Electric</div>
-          <div class="cert-brand-sub">Limited</div>
-        </div>
+        <img src="${typeof GUILD_LOGO_DATAURI !== 'undefined' ? GUILD_LOGO_DATAURI : ''}"
+             alt="Guild Electric Limited"
+             style="height:64px; width:auto; display:block;" />
       </div>
       <div class="cert-contact">
         470 Midwest Road<br/>
@@ -566,10 +560,10 @@ async function generatePDF(w) {
     return yPos;
   };
 
-  // ── FIX 1: REAL GUILD LOGO ──
-  // Logo image is 28mm wide × 28mm tall in the header, left-aligned
-  const logoH = 18;
-  const logoW = 18; // roughly square crop of the logo
+  // ── REAL GUILD LOGO ──
+  // Image is 284×338 px (portrait). Render at 20mm tall → width = 20 * (284/338) ≈ 16.8mm
+  const logoH = 20;
+  const logoW = Math.round(logoH * (284 / 338) * 10) / 10;  // ≈ 16.8mm
   if (typeof GUILD_LOGO_B64 !== 'undefined') {
     doc.addImage(GUILD_LOGO_B64, 'JPEG', margin, y, logoW, logoH);
   }
