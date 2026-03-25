@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warranty Management System — Guild Electric</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="18" stroke="#E8201A" stroke-width="2.5"/>
+          <path d="M13 20 L20 12 L27 20 L20 28 Z" fill="#E8201A"/>
+          <circle cx="20" cy="20" r="4" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">GUILD ELECTRIC</div>
+        <div class="brand-sub">Warranty Management System</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="btnNew" title="New Warranty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Warranty
+      </button>
+      <button class="btn-icon btn-ghost" id="btnSave" title="Save Database">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
+      <label class="btn-icon btn-ghost" title="Open Database">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        Open
+        <input type="file" id="fileOpen" accept=".json" style="display:none"/>
+      </label>
+    </div>
+  </div>
+</header>
+
+<!-- STATS BAR -->
+<div class="stats-bar" id="statsBar">
+  <div class="stat-item">
+    <span class="stat-val" id="statTotal">0</span>
+    <span class="stat-label">Total</span>
+  </div>
+  <div class="stat-sep"></div>
+  <div class="stat-item active-stat">
+    <span class="stat-val" id="statActive">0</span>
+    <span class="stat-label">Active</span>
+  </div>
+  <div class="stat-sep"></div>
+  <div class="stat-item expired-stat">
+    <span class="stat-val" id="statExpired">0</span>
+    <span class="stat-label">Expired</span>
+  </div>
+  <div class="stat-sep"></div>
+  <div class="stat-item expiring-stat">
+    <span class="stat-val" id="statExpiring">0</span>
+    <span class="stat-label">Expiring &lt;30d</span>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<main class="main-layout">
+
+  <!-- LEFT PANEL: Form -->
+  <aside class="form-panel" id="formPanel">
+    <div class="panel-header">
+      <span id="formTitle">New Warranty Certificate</span>
+      <button class="btn-close" id="btnCloseForm">✕</button>
+    </div>
+    <div class="form-body">
+      <form id="warrantyForm" novalidate>
+
+        <div class="form-section-label">Project Information</div>
+
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Project Name / Contract No. <span class="req">*</span></label>
+            <input type="text" id="fProjectName" placeholder="e.g. Terminal B — Electrical Distribution" required/>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Project Address <span class="req">*</span></label>
+            <input type="text" id="fProjectAddress" placeholder="Street, City, Province, Postal Code" required/>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Issued To <span class="req">*</span></label>
+            <input type="text" id="fIssuedTo" placeholder="Owner / General Contractor name" required/>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Subject / Work Description <span class="req">*</span></label>
+            <textarea id="fSubject" rows="2" placeholder="Brief description of work covered" required></textarea>
+          </div>
+        </div>
+
+        <div class="form-section-label">Dates & Period</div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label>Date Issued <span class="req">*</span></label>
+            <input type="date" id="fDateIssued" required/>
+          </div>
+          <div class="form-group">
+            <label>Effective Date <span class="req">*</span></label>
+            <input type="date" id="fEffectiveDate" required/>
+          </div>
+        </div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label>Warranty Period</label>
+            <select id="fWarrantyPeriod">
+              <option value="1 Calendar Year">1 Calendar Year</option>
+              <option value="2 Calendar Years">2 Calendar Years</option>
+              <option value="3 Calendar Years">3 Calendar Years</option>
+              <option value="5 Calendar Years">5 Calendar Years</option>
+              <option value="Custom">Custom…</option>
+            </select>
+          </div>
+          <div class="form-group" id="customPeriodGroup" style="display:none">
+            <label>Custom Period</label>
+            <input type="text" id="fCustomPeriod" placeholder="e.g. 18 Months"/>
+          </div>
+        </div>
+
+        <div class="form-section-label">Administration</div>
+
+        <div class="form-row two-col">
+          <div class="form-group">
+            <label>W.O. #</label>
+            <input type="text" id="fWO" placeholder="Work Order Number"/>
+          </div>
+          <div class="form-group">
+            <label>Project Manager</label>
+            <input type="text" id="fPM" placeholder="PM Name"/>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Attachments / Notes</label>
+            <textarea id="fNotes" rows="2" placeholder="Additional notes or attachment references"></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="btnCancelForm">Cancel</button>
+          <button type="submit" class="btn-primary" id="btnSubmitForm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Issue Certificate
+          </button>
+        </div>
+      </form>
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL: Warranty List -->
+  <section class="list-panel">
+
+    <div class="list-toolbar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search project, owner, address…"/>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">All</button>
+        <button class="filter-tab" data-filter="active">Active</button>
+        <button class="filter-tab" data-filter="expiring">Expiring</button>
+        <button class="filter-tab" data-filter="expired">Expired</button>
+      </div>
+    </div>
+
+    <!-- Active Warranties -->
+    <div class="section-divider" id="dividerActive">
+      <span class="divider-badge active-badge">● Active</span>
+    </div>
+    <div class="warranty-list" id="listActive"></div>
+
+    <!-- Expiring Soon -->
+    <div class="section-divider" id="dividerExpiring">
+      <span class="divider-badge expiring-badge">⚠ Expiring Soon (&lt;30 days)</span>
+    </div>
+    <div class="warranty-list" id="listExpiring"></div>
+
+    <!-- Expired -->
+    <div class="section-divider" id="dividerExpired">
+      <span class="divider-badge expired-badge">✕ Expired</span>
+    </div>
+    <div class="warranty-list" id="listExpired"></div>
+
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="8" width="56" height="64" rx="4" stroke="#444" stroke-width="2"/>
+        <line x1="24" y1="28" x2="56" y2="28" stroke="#444" stroke-width="2"/>
+        <line x1="24" y1="38" x2="56" y2="38" stroke="#444" stroke-width="2"/>
+        <line x1="24" y1="48" x2="44" y2="48" stroke="#444" stroke-width="2"/>
+        <circle cx="58" cy="58" r="14" fill="#1a1a1a" stroke="#E8201A" stroke-width="2"/>
+        <line x1="53" y1="58" x2="63" y2="58" stroke="#E8201A" stroke-width="2"/>
+        <line x1="58" y1="53" x2="58" y2="63" stroke="#E8201A" stroke-width="2"/>
+      </svg>
+      <p>No warranties yet.<br/>Click <strong>New Warranty</strong> to issue your first certificate.</p>
+    </div>
+
+  </section>
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- PDF PREVIEW MODAL -->
+<div class="modal-overlay" id="pdfModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modalTitle">Warranty Certificate</span>
+      <div class="modal-header-actions">
+        <button class="btn-icon" id="btnDownloadPDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PDF
+        </button>
+        <button class="btn-close" id="btnCloseModal">✕</button>
+      </div>
+    </div>
+    <div class="modal-content" id="modalContent">
+      <!-- PDF preview rendered here -->
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
