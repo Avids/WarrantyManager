@@ -524,19 +524,20 @@ async function generatePDF(w) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
-  const pageW = 215.9;
-  const pageH = 279.4;
-  const margin = 18;
+  const pageW   = 215.9;
+  const pageH   = 279.4;
+  const margin  = 18;
   const contentW = pageW - margin * 2;
   let y = margin;
 
   // Colors
-  const RED    = [232, 32, 26];
-  const BLACK  = [26, 26, 26];
-  const GRAY   = [100, 100, 100];
-  const LGRAY  = [200, 200, 200];
-  const BGRAY  = [245, 245, 245];
+  const RED   = [232, 32, 26];
+  const BLACK = [26, 26, 26];
+  const GRAY  = [100, 100, 100];
+  const LGRAY = [200, 200, 200];
+  const BGRAY = [245, 245, 245];
 
+  // ── HELPERS ──
   const setFont = (size, style = 'normal', color = BLACK) => {
     doc.setFontSize(size);
     doc.setFont('helvetica', style);
@@ -549,46 +550,32 @@ async function generatePDF(w) {
     doc.line(x1, y1, x2, y2);
   };
 
-  const addRect = (x, y, w, h, fillColor, strokeColor, lw = 0.3) => {
-    if (fillColor) doc.setFillColor(...fillColor);
+  const addRect = (x, ry, rw, rh, fillColor, strokeColor, lw = 0.3) => {
+    if (fillColor)   doc.setFillColor(...fillColor);
     if (strokeColor) doc.setDrawColor(...strokeColor);
     doc.setLineWidth(lw);
-    if (fillColor && strokeColor) doc.rect(x, y, w, h, 'FD');
-    else if (fillColor)  doc.rect(x, y, w, h, 'F');
-    else doc.rect(x, y, w, h, 'D');
+    if (fillColor && strokeColor) doc.rect(x, ry, rw, rh, 'FD');
+    else if (fillColor)           doc.rect(x, ry, rw, rh, 'F');
+    else                          doc.rect(x, ry, rw, rh, 'D');
   };
 
-  const wrapText = (text, x, yPos, maxW, lineH, opts = {}) => {
+  // Wrap text and return new Y
+  const wrapText = (text, x, yPos, maxW, lineH) => {
     const lines = doc.splitTextToSize(text || '', maxW);
-    lines.forEach(line => {
-      doc.text(line, x, yPos, opts);
-      yPos += lineH;
-    });
+    lines.forEach(line => { doc.text(line, x, yPos); yPos += lineH; });
     return yPos;
   };
 
-  // ── LOGO ──
-  // Circle
-  doc.setDrawColor(...RED);
-  doc.setLineWidth(1.2);
-  doc.setFillColor(255, 255, 255);
-  doc.circle(margin + 7, y + 7, 7, 'D');
-  // Diamond
-  doc.setFillColor(...RED);
-  doc.setDrawColor(...RED);
-  const cx = margin + 7, cy = y + 7, r = 4.5;
-  doc.lines([[r,-r],[r,r],[-r,r],[-r,-r]], cx - r, cy, [1,1], 'F', true);
-  // Center dot
-  doc.setFillColor(255, 255, 255);
-  doc.circle(cx, cy, 1.4, 'F');
+  // ── FIX 1: REAL GUILD LOGO ──
+  // Logo image is 28mm wide × 28mm tall in the header, left-aligned
+  const logoH = 18;
+  const logoW = 18; // roughly square crop of the logo
+  if (typeof GUILD_LOGO_B64 !== 'undefined') {
+    doc.addImage(GUILD_LOGO_B64, 'JPEG', margin, y, logoW, logoH);
+  }
+  const logoRight = margin + logoW + 3;
 
-  // Guild Electric
-  setFont(18, 'bold', RED);
-  doc.text('Guild Electric', margin + 17, y + 5.5);
-  setFont(9, 'normal', GRAY);
-  doc.text('Limited', margin + 17, y + 10.5);
-
-  // Contact block (right)
+  // Contact block — right side
   setFont(8, 'normal', GRAY);
   const contactLines = [
     '470 Midwest Road',
@@ -604,157 +591,188 @@ async function generatePDF(w) {
   setFont(8, 'bold', RED);
   doc.text('www.guildelectric.com', pageW - margin, cy2, { align: 'right' });
 
-  y += 20;
+  y += logoH + 4;
   addLine(margin, y, pageW - margin, y, RED, 0.6);
   y += 6;
 
   // ── FIELDS TABLE ──
-  const col1W = 44, col2W = 74, col3W = 36, col4W = contentW - col1W - col2W - col3W;
-  const rowH = 9;
+  // FIX 3: Taller rows (10mm) to allow text to wrap without overflow
+  const col1W = 46, col2W = 68, col3W = 38, col4W = contentW - col1W - col2W - col3W;
+  const rowH  = 10;
+  const labelSize = 7;
+  const valueSize = 8; // FIX 4: smaller value font so text fits in cell
 
-  const drawFieldRow = (rows) => {
-    rows.forEach(([label1, val1, label2, val2]) => {
-      const colX = [margin, margin + col1W, margin + col1W + col2W, margin + col1W + col2W + col3W];
-      const colW = [col1W, col2W, col3W, col4W];
+  const colX = [margin, margin + col1W, margin + col1W + col2W, margin + col1W + col2W + col3W];
 
-      addRect(colX[0], y, col1W, rowH, BGRAY, LGRAY);
-      addRect(colX[1], y, col2W, rowH, null, LGRAY);
-      addRect(colX[2], y, col3W, rowH, BGRAY, LGRAY);
-      addRect(colX[3], y, col4W, rowH, null, LGRAY);
+  // Helper: draw one field row
+  const drawRow = (label1, val1, label2, val2, boldVal1 = false) => {
+    addRect(colX[0], y, col1W,  rowH, BGRAY, LGRAY);
+    addRect(colX[1], y, col2W,  rowH, null,  LGRAY);
+    addRect(colX[2], y, col3W,  rowH, BGRAY, LGRAY);
+    addRect(colX[3], y, col4W,  rowH, null,  LGRAY);
 
-      setFont(7.5, 'bold', GRAY);
-      doc.text(label1 || '', colX[0] + 2, y + 6);
-      doc.text(label2 || '', colX[2] + 2, y + 6);
+    // Labels
+    setFont(labelSize, 'bold', GRAY);
+    doc.text(label1 || '', colX[0] + 2, y + 7);
+    doc.text(label2 || '', colX[2] + 2, y + 7);
 
-      setFont(8.5, 'normal', BLACK);
-      const v1 = doc.splitTextToSize(val1 || '—', col2W - 4);
-      doc.text(v1[0] || '', colX[1] + 2, y + 6);
-      doc.text(val2 || '—', colX[3] + 2, y + 6);
+    // FIX 2 & 5: Value col 1 — truncate to fit cell; bold if flagged
+    setFont(valueSize, boldVal1 ? 'bold' : 'normal', BLACK);
+    const v1lines = doc.splitTextToSize(val1 || '\u2014', col2W - 4);
+    doc.text(v1lines[0], colX[1] + 2, y + 7); // only first line (single row)
 
-      y += rowH;
-    });
+    // Value col 2 — truncate to fit
+    setFont(valueSize, 'normal', BLACK);
+    const v2lines = doc.splitTextToSize(val2 || '\u2014', col4W - 4);
+    doc.text(v2lines[0], colX[3] + 2, y + 7);
+
+    y += rowH;
   };
 
-  drawFieldRow([
-    ['PROJECT NAME / CONTRACT NO.', w.projectName, 'DATE ISSUED', formatDate(w.dateIssued)],
-    ['PROJECT ADDRESS', w.projectAddress, 'EFFECTIVE DATE', formatDate(w.effectiveDate)],
-    ['ISSUED TO', w.issuedTo, 'WARRANTY PERIOD', w.warrantyPeriod],
-  ]);
+  // FIX 5: Project name is bold (boldVal1 = true on first row)
+  drawRow('PROJECT NAME / CONTRACT NO.', w.projectName,    'DATE ISSUED',     formatDate(w.dateIssued),    true);
+  drawRow('PROJECT ADDRESS',             w.projectAddress, 'EFFECTIVE DATE',  formatDate(w.effectiveDate), false);
+  drawRow('ISSUED TO',                   w.issuedTo,       'WARRANTY PERIOD', w.warrantyPeriod,            false);
 
-  // Subject row — full width
-  addRect(margin, y, col1W, rowH, BGRAY, LGRAY);
-  addRect(margin + col1W, y, contentW - col1W, rowH, null, LGRAY);
-  setFont(7.5, 'bold', GRAY);
-  doc.text('SUBJECT', margin + 2, y + 6);
-  setFont(8.5, 'normal', BLACK);
-  const subjectLines = doc.splitTextToSize(w.subject || '—', contentW - col1W - 4);
-  doc.text(subjectLines[0] || '', margin + col1W + 2, y + 6);
-  y += rowH + 6;
+  // Subject row — full width, may need taller cell if text is long
+  const subjectText   = w.subject || '\u2014';
+  const subjectLines  = doc.splitTextToSize(subjectText, contentW - col1W - 4);
+  const subjectRowH   = Math.max(rowH, subjectLines.length * 4.5 + 4);
+  addRect(colX[0], y, col1W,            subjectRowH, BGRAY, LGRAY);
+  addRect(colX[1], y, contentW - col1W, subjectRowH, null,  LGRAY);
+  setFont(labelSize, 'bold', GRAY);
+  doc.text('SUBJECT', colX[0] + 2, y + 7);
+  setFont(valueSize, 'normal', BLACK);
+  subjectLines.slice(0, 2).forEach((line, i) => {   // max 2 lines
+    doc.text(line, colX[1] + 2, y + 5 + i * 4.5);
+  });
+  y += subjectRowH + 5;
 
-  // ── TITLE ──
+  // ── CERTIFICATE TITLE ──
   addLine(margin, y, pageW - margin, y, RED, 0.8);
-  y += 2;
-  setFont(18, 'bold', RED);
+  y += 1.5;
+  setFont(17, 'bold', RED);
   doc.text('LIMITED WARRANTY CERTIFICATE', pageW / 2, y + 6, { align: 'center' });
-  y += 9;
+  y += 8;
   addLine(margin, y, pageW - margin, y, RED, 0.8);
-  y += 7;
+  y += 6;
 
-  // ── BODY ──
-  const lineH = 5;
-  setFont(9, 'normal', BLACK);
+  // ── BODY TEXT (FIX 3: size 8 instead of 9 to prevent footer overlap) ──
+  const bodySize = 8;
+  const lineH    = 4.5;
+  const sectionGap = 3;
+
+  setFont(bodySize, 'normal', BLACK);
   y = wrapText(
-    'Guild Electric Limited provides this Limited Warranty for the work described in the Subject line (the "Work"), as installed by Guild Electric and documented in the issued as-built drawings at the time of handover. This warranty shall commence upon Substantial Completion / Owner Acceptance of the Work on the Effective Date noted above.',
+    'Guild Electric Limited provides this Limited Warranty for the work described in the Subject line (the \u201cWork\u201d), as installed by Guild Electric and documented in the issued as-built drawings at the time of handover. This warranty shall commence upon Substantial Completion / Owner Acceptance of the Work on the Effective Date noted above.',
     margin, y, contentW, lineH
   );
-  y += 4;
+  y += sectionGap;
 
+  // Section block helper
   const section = (title, body) => {
-    setFont(10, 'bold', RED);
+    setFont(9, 'bold', RED);
     doc.text(title.toUpperCase(), margin, y);
-    y += 5.5;
-    setFont(9, 'normal', BLACK);
+    y += 5;
+    setFont(bodySize, 'normal', BLACK);
     y = wrapText(body, margin, y, contentW, lineH);
-    y += 4;
+    y += sectionGap;
   };
 
   section('Scope of Warranty',
-    'The Work shall be free from defects in workmanship under normal use and service conditions for the period indicated above from the Effective Date. Equipment and materials are covered solely by the respective manufacturer\'s warranties and are not included within this Limited Warranty.'
+    'The Work shall be free from defects in workmanship under normal use and service conditions for the period indicated above from the Effective Date. Equipment and materials are covered solely by the respective manufacturer\u2019s warranties and are not included within this Limited Warranty.'
   );
 
   section('Warranty Claims Procedure',
     'Warranty claims must be submitted in writing within the warranty period, and reasonable access must be provided for inspection. Guild Electric will, in accordance with applicable codes and project requirements, restore defective workmanship to the condition existing at the time of acceptance, by repair or replacement at its sole option, within a reasonable timeframe. Such remedy shall not require upgrades or improvements beyond the original accepted installation.'
   );
 
-  setFont(10, 'bold', RED);
+  // Exclusions heading
+  setFont(9, 'bold', RED);
   doc.text('EXCLUSIONS & LIMITATIONS', margin, y);
-  y += 5.5;
+  y += 5;
 
-  setFont(9, 'normal', BLACK);
+  // FIX 2: Use a proper bullet via latin1 character (ASCII 149 = bullet in win-1252,
+  // but jsPDF standard fonts support the en-dash reliably; use unicode \u2022 bullet)
+  setFont(bodySize, 'normal', BLACK);
   const bullets = [
     'Work modified, altered, or repaired by parties other than Guild Electric Limited.',
     'Damage caused by misuse, abuse, neglect, accident, or acts of God.',
     'Normal wear and tear consistent with the expected service life of the materials.',
     'Issues arising from design deficiencies or Owner-supplied equipment / materials.',
-    'Failure to follow manufacturer\'s operating or maintenance instructions.'
+    'Failure to follow manufacturer\u2019s operating or maintenance instructions.'
   ];
+  const bulletIndent = 5;
   bullets.forEach(b => {
-    doc.text('▪', margin, y);
-    y = wrapText(b, margin + 5, y, contentW - 5, lineH);
+    // Draw solid filled circle as bullet — reliable across all PDF viewers
+    doc.setFillColor(...BLACK);
+    doc.circle(margin + 1.2, y - 1.2, 0.9, 'F');
+    const wrapped = doc.splitTextToSize(b, contentW - bulletIndent);
+    wrapped.forEach((line, i) => {
+      doc.text(line, margin + bulletIndent, y + (i * lineH));
+    });
+    y += wrapped.length * lineH + 1;
   });
-  y += 3;
+  y += 2;
 
+  setFont(bodySize, 'normal', BLACK);
   y = wrapText(
     'Liability under this warranty is strictly limited to the remedies described above and expressly excludes all consequential, incidental, or special damages, including but not limited to loss of use or revenue. This warranty is provided in accordance with the applicable project specifications and subcontract agreement requirements.',
     margin, y, contentW, lineH
   );
-  y += 5;
+  y += 4;
 
-  setFont(9, 'normal', GRAY);
+  // ── CLOSING & SIGNATURE ──
+  // Reserve fixed space at bottom for sig block + footer
+  // Footer occupies bottom 18mm; sig block needs ~50mm; attachments ~15mm
+  // So body must not go below pageH - 18 - 50 - 15 = ~196mm
+  // We clamp y here — content is sized (bodySize=8) to fit comfortably
+
+  setFont(8, 'normal', GRAY);
   doc.text('Yours truly,', margin, y);
-  y += 5;
-  setFont(10, 'bold', RED);
+  y += 4.5;
+  setFont(9, 'bold', RED);
   doc.text('Guild Electric Limited', margin, y);
   y += 12;
 
-  // ── SIGNATURE ──
-  addLine(margin, y, margin + 55, y, BLACK, 0.4);
-  y += 5;
+  addLine(margin, y, margin + 58, y, [26, 26, 26], 0.4);
+  y += 4.5;
   setFont(9, 'bold', BLACK);
   doc.text('Dan Camilleri', margin, y);
   y += 4.5;
-  setFont(8.5, 'normal', GRAY);
+  setFont(8, 'normal', GRAY);
   doc.text('Chief Operating Officer', margin, y);
   y += 6;
 
-  setFont(8.5, 'normal', GRAY);
+  setFont(8, 'bold', GRAY);
   doc.text('Attachments / Notes:', margin, y);
   y += 4.5;
-  setFont(8.5, 'normal', BLACK);
-  y = wrapText(w.notes || '— N/A', margin, y, 100, 4.5);
+  setFont(8, 'normal', BLACK);
+  const notesLines = doc.splitTextToSize(w.notes || '— N/A', 110);
+  notesLines.forEach(l => { doc.text(l, margin, y); y += 4; });
 
-  // WO / Distribution (right side of sig)
-  const sigY = pageH - 60;
-  setFont(10, 'bold', RED);
-  doc.text(`W.O. # ${w.wo || '___________'}`, pageW - margin, sigY, { align: 'right' });
+  // ── W.O. + DISTRIBUTION (fixed at bottom-right, above footer) ──
+  const distBaseY = pageH - 20 - (5 * 4.5) - 14; // anchored from bottom up
+  setFont(9, 'bold', RED);
+  doc.text(`W.O. # ${w.wo || '___________'}`, pageW - margin, distBaseY, { align: 'right' });
 
   setFont(8, 'bold', GRAY);
-  doc.text('Distribution:', pageW - margin, sigY + 6, { align: 'right' });
-  const distList = ['L. Bertrand', 'Shah', 'Manual', 'Service Department', w.pm ? `${w.pm} (PM)` : 'Project Manager'];
+  doc.text('Distribution:', pageW - margin, distBaseY + 6, { align: 'right' });
+  const distList = ['L. Bertrand', 'Shah', 'Manual', 'Service Department',
+                    w.pm ? `${w.pm} (PM)` : 'Project Manager'];
   setFont(8, 'normal', GRAY);
   distList.forEach((d, i) => {
-    doc.text(`— ${d}`, pageW - margin, sigY + 11 + i * 4.5, { align: 'right' });
+    doc.text(`\u2014 ${d}`, pageW - margin, distBaseY + 11 + i * 4.5, { align: 'right' });
   });
 
-  // ── FOOTER ──
-  const fy = pageH - 12;
-  addLine(margin, fy - 3, pageW - margin, fy - 3, RED, 0.8);
-  setFont(7.5, 'bold', RED);
+  // ── FOOTER — always pinned to bottom ──
+  const fy = pageH - 10;
+  addLine(margin, fy - 4, pageW - margin, fy - 4, RED, 0.8);
+  setFont(7, 'bold', RED);
   const footItems = ['Electrical Communication', 'Communications', 'Airports, Highways & Traffic', 'Maintenance & Service', 'Signs'];
   const spacing = contentW / footItems.length;
   footItems.forEach((item, i) => {
-    const fx = margin + spacing * i + spacing / 2;
-    doc.text(item, fx, fy, { align: 'center' });
+    doc.text(item, margin + spacing * i + spacing / 2, fy, { align: 'center' });
   });
 
   // ── SAVE ──
